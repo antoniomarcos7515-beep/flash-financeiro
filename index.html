@@ -719,6 +719,37 @@ input::placeholder { color: var(--text3); }
   }
 }
 </style>
+
+<style id="flash-month-selector-css">
+.month-selector-flash{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:12px 0 16px;padding:8px;border:1px solid rgba(255,255,255,.09);
+  border-radius:16px;background:rgba(255,255,255,.025);
+}
+.month-selector-flash button{
+  width:42px;height:38px;border-radius:12px;border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.035);color:inherit;font-size:20px;font-weight:800;
+  cursor:pointer;
+}
+.month-selector-flash .month-center{
+  flex:1;text-align:center;min-width:0;
+}
+.month-selector-flash .month-name{
+  font-size:14px;font-weight:800;text-transform:capitalize;
+}
+.month-selector-flash .month-sub{
+  font-size:9px;opacity:.55;margin-top:2px;
+}
+.month-selector-flash .month-today{
+  width:auto;padding:0 10px;font-size:10px;
+}
+@media(max-width:700px){
+  .month-selector-flash{margin:8px 0 14px}
+  .month-selector-flash button{width:40px;height:36px}
+  .month-selector-flash .month-name{font-size:13px}
+}
+</style>
+
 </head>
 <body>
 <div class="wallpaper-img" id="wallpaper-img"></div>
@@ -787,6 +818,16 @@ input::placeholder { color: var(--text3); }
 
   <!-- ── RESUMO ── -->
   <section class="view" id="view-resumo">
+    <div class="month-selector-flash" id="flash-month-selector">
+      <button type="button" id="flash-month-prev" aria-label="Mês anterior">‹</button>
+      <div class="month-center">
+        <div class="month-name" id="flash-month-name">Mês atual</div>
+        <div class="month-sub">Resumo financeiro</div>
+      </div>
+      <button type="button" id="flash-month-next" aria-label="Próximo mês">›</button>
+      <button type="button" class="month-today" id="flash-month-today">Hoje</button>
+    </div>
+
     <div class="section-title" style="margin-top:18px">Resumo financeiro</div>
     <div class="summary">
       <div class="stat-card s-green"><div class="stat-val" id="resumo-receitas">R$ 0</div><div class="stat-lbl">Receitas</div></div>
@@ -2048,6 +2089,156 @@ init();
     setTimeout(syncFlashTheme, 20);
     setTimeout(syncFlashTheme, 150);
   }, true);
+})();
+</script>
+
+
+<script id="flash-month-selector-js">
+(function(){
+  let flashSelectedMonth = null;
+
+  function flashMonthKeyFromDate(d){
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }
+  function flashCurrentMonth(){
+    return flashMonthKeyFromDate(new Date());
+  }
+  function flashShiftMonth(ym, delta){
+    const [y,m] = ym.split('-').map(Number);
+    const d = new Date(y, m-1 + delta, 1);
+    return flashMonthKeyFromDate(d);
+  }
+  function flashMonthLabel(ym){
+    const [y,m] = ym.split('-').map(Number);
+    const d = new Date(y,m-1,1);
+    return d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  }
+
+  function flashRenderSelectedMonth(){
+    const ym = flashSelectedMonth || flashCurrentMonth();
+    const name = document.getElementById('flash-month-name');
+    if(name) name.textContent = flashMonthLabel(ym);
+
+    // Re-render resumo usando o mês escolhido.
+    if(typeof window.renderResumoForMonth === 'function'){
+      window.renderResumoForMonth(ym);
+    } else if(typeof window.switchTab === 'function'){
+      window.switchTab('resumo');
+    }
+
+    // Atualiza o botão "próximo" sem impedir navegação; o usuário pode
+    // consultar meses futuros, que aparecerão vazios até haver lançamentos.
+  }
+
+  window.flashGetSelectedMonth = function(){
+    return flashSelectedMonth || flashCurrentMonth();
+  };
+
+  window.flashSetSelectedMonth = function(ym){
+    flashSelectedMonth = ym;
+    flashRenderSelectedMonth();
+  };
+
+  const prev = document.getElementById('flash-month-prev');
+  const next = document.getElementById('flash-month-next');
+  const today = document.getElementById('flash-month-today');
+
+  if(prev) prev.addEventListener('click', function(){
+    flashSelectedMonth = flashShiftMonth(flashGetSelectedMonth(), -1);
+    flashRenderSelectedMonth();
+  });
+  if(next) next.addEventListener('click', function(){
+    flashSelectedMonth = flashShiftMonth(flashGetSelectedMonth(), 1);
+    flashRenderSelectedMonth();
+  });
+  if(today) today.addEventListener('click', function(){
+    flashSelectedMonth = flashCurrentMonth();
+    flashRenderSelectedMonth();
+  });
+
+  // Sobrescreve o resumo para aceitar qualquer mês selecionado.
+  const originalRenderResumo = window.renderResumo;
+  window.renderResumoForMonth = function(ym){
+    if(typeof window.__flashRenderResumoMonth === 'function'){
+      window.__flashRenderResumoMonth(ym);
+      return;
+    }
+    if(typeof originalRenderResumo === 'function') originalRenderResumo();
+  };
+
+  // Aguarda o script principal definir renderResumo e então injeta uma versão
+  // que replica o resumo existente, mas usando o mês escolhido.
+  function installMonthRender(){
+    if(typeof window.renderResumo !== 'function' || window.__flashMonthInstalled) return;
+    window.__flashMonthInstalled = true;
+
+    const base = window.renderResumo;
+    window.__flashRenderResumoMonth = function(ym){
+      const transactions = (window.data && Array.isArray(window.data.transactions))
+        ? window.data.transactions : [];
+      const cur = transactions.filter(t => String(t.date||'').slice(0,7) === ym);
+
+      const sum = (type) => cur.filter(t=>t.type===type)
+        .reduce((a,t)=>a+Number(t.value||0),0);
+
+      const fmt = window.fmt || (n => 'R$ ' + Number(n||0).toFixed(2).replace('.',','));
+
+      const r = sum('receita'), d = sum('despesa'), s = r-d;
+      const set = (id,val) => { const el=document.getElementById(id); if(el) el.textContent=fmt(val); };
+
+      set('resumo-receitas',r);
+      set('resumo-despesas',d);
+      set('resumo-saldo',s);
+
+      const pay = {cartao:0,pix:0,dinheiro:0};
+      cur.filter(t=>t.type==='despesa').forEach(t=>{
+        const m=t.paymentMethod==='conta'?'dinheiro':(t.paymentMethod||'dinheiro');
+        if(pay[m]!==undefined) pay[m]+=Number(t.value||0);
+      });
+      const pb=document.getElementById('resumo-payment-breakdown');
+      if(pb){
+        const names={cartao:'💳 Cartão',pix:'⚡ Pix',dinheiro:'💵 Dinheiro / Conta'};
+        pb.innerHTML=Object.keys(pay).map(m=>`<div class="stat-card s-${m==='pix'?'green':m==='cartao'?'red':'gold'}"><div class="stat-val">${fmt(pay[m])}</div><div class="stat-lbl">${names[m]}</div></div>`).join('');
+      }
+
+      const list=document.getElementById('resumo-list');
+      if(list){
+        const infoFn=window.getCatInfo;
+        const escapeFn=window.escapeHtml || (x=>String(x));
+        const rows=[...cur].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+        list.innerHTML=rows.length ? rows.map(t=>{
+          const info=infoFn ? infoFn(t.type,t.category) : {name:'',icon:'•'};
+          const sign=t.type==='receita'?'+':'-';
+          const pm=({cartao:'💳 Cartão',pix:'⚡ Pix',dinheiro:'💵 Dinheiro / Conta',conta:'💵 Dinheiro / Conta'})[t.paymentMethod] || '💵 Dinheiro / Conta';
+          return `<div class="txn-row"><div class="txn-icon">${info.icon||'•'}</div><div class="txn-main"><div class="txn-name">${escapeFn(t.description||info.name||'Lançamento')}</div><div class="txn-meta">${info.name||''} · ${pm}</div></div><div class="txn-value ${t.type==='receita'?'positive':'negative'}">${sign} ${fmt(t.value)}</div></div>`;
+        }).join('') : '<div class="empty-state"><p>Nenhum lançamento neste mês.</p></div>';
+      }
+
+      // Mantém o gráfico por categoria atualizado para o mês selecionado.
+      const wrap=document.getElementById('resumo-donut-wrap');
+      if(wrap){
+        const expenses=cur.filter(t=>t.type==='despesa');
+        if(!expenses.length){
+          wrap.innerHTML='<div class="empty-state" style="padding:20px 0"><p>Sem despesas neste mês.</p></div>';
+        } else if(typeof window.renderResumoDonutFor === 'function'){
+          window.renderResumoDonutFor(expenses);
+        }
+      }
+    };
+
+    window.renderResumo = function(){
+      window.__flashRenderResumoMonth(flashGetSelectedMonth());
+    };
+
+    flashRenderSelectedMonth();
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', ()=>setTimeout(installMonthRender,50));
+  } else {
+    setTimeout(installMonthRender,50);
+  }
+  setTimeout(installMonthRender,500);
 })();
 </script>
 
