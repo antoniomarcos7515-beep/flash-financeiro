@@ -1901,20 +1901,34 @@ init();
     const btn = nav && nav.querySelector('[data-flash-nav="lancar"]');
     if(!btn) return;
 
-    const root = getComputedStyle(document.documentElement);
+    // O tema é aplicado no BODY (body[data-theme="..."]), então a cor
+    // precisa ser lida primeiro do estilo computado do body. Se lermos
+    // document.documentElement primeiro, pegamos o dourado padrão da :root
+    // e o botão fica dourado mesmo depois de trocar de tema.
     const body = getComputedStyle(document.body);
-    const vars = ['--accent','--primary','--gold','--theme','--main'];
+    const root = getComputedStyle(document.documentElement);
+    const vars = ['--accent','--gold','--primary','--theme','--main'];
     let color = '';
 
     for(const v of vars){
-      const a = root.getPropertyValue(v).trim() || body.getPropertyValue(v).trim();
+      const a = body.getPropertyValue(v).trim() || root.getPropertyValue(v).trim();
       if(a && (a.startsWith('#') || a.startsWith('rgb') || a.startsWith('hsl') || a.startsWith('oklch'))){
         color = a;
         break;
       }
     }
 
-    if(color) btn.style.setProperty('background', color, 'important');
+    if(color) {
+      btn.style.setProperty('background', color, 'important');
+      btn.style.setProperty('box-shadow', '0 5px 18px color-mix(in srgb, ' + color + ' 28%, transparent)', 'important');
+    }
+
+    const onAccent = body.getPropertyValue('--on-accent').trim() || root.getPropertyValue('--on-accent').trim();
+    if(onAccent) {
+      btn.style.setProperty('color', onAccent, 'important');
+      const label = btn.querySelector('.label');
+      if(label) label.style.setProperty('color', onAccent, 'important');
+    }
   }
 
   syncFlashLaunchTheme();
