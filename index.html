@@ -773,6 +773,27 @@ input::placeholder { color: var(--text3); }
     <div class="list" id="recent-list"></div>
   </section>
 
+  <!-- ── RESUMO ── -->
+  <section class="view" id="view-resumo">
+    <div class="section-title" style="margin-top:18px">Resumo financeiro</div>
+    <div class="summary">
+      <div class="stat-card s-green"><div class="stat-val" id="resumo-receitas">R$ 0</div><div class="stat-lbl">Receitas</div></div>
+      <div class="stat-card s-red"><div class="stat-val" id="resumo-despesas">R$ 0</div><div class="stat-lbl">Despesas</div></div>
+      <div class="stat-card s-gold"><div class="stat-val" id="resumo-saldo">R$ 0</div><div class="stat-lbl">Saldo</div></div>
+    </div>
+
+    <div class="section-title">Dinheiro por forma de pagamento</div>
+    <div id="resumo-payment-breakdown" class="summary" style="margin-bottom:18px"></div>
+
+    <div class="section-title">Por categoria</div>
+    <div class="donut-wrap" id="resumo-donut-wrap">
+      <div class="empty-state" style="padding:20px 0"><p>Sem despesas este mês ainda.</p></div>
+    </div>
+
+    <div class="section-title">Lançamentos do mês</div>
+    <div class="list" id="resumo-list"></div>
+  </section>
+
   <!-- ── LANÇAMENTOS ── -->
   <section class="view" id="view-lancamentos">
     <div class="filter-bar" id="txn-filters">
@@ -1141,7 +1162,12 @@ function switchTab(tab){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+tab).classList.add('active');
   activeTab=tab;
+  document.querySelectorAll('.flash-mobile-nav button').forEach(el=>{
+    const target=el.dataset.flashNav;
+    el.classList.toggle('active', target===tab);
+  });
   if(tab==='painel') renderPainel();
+  else if(tab==='resumo') renderResumo();
   else if(tab==='lancamentos') renderLancamentos();
   else if(tab==='assistente'){
     const scroll=document.getElementById('chat-scroll');
@@ -1158,6 +1184,55 @@ function renderPainel(){
   renderAlerts();
   renderRecent();
 }
+
+function renderResumo(){
+  const ym=currentMonthKey();
+  const cur=txnsForMonth(ym);
+  const receitas=sumByType(cur,'receita');
+  const despesas=sumByType(cur,'despesa');
+  const saldo=receitas-despesas;
+
+  const r=document.getElementById('resumo-receitas');
+  const d=document.getElementById('resumo-despesas');
+  const s=document.getElementById('resumo-saldo');
+  if(r) r.textContent=fmt(receitas);
+  if(d) d.textContent=fmt(despesas);
+  if(s) s.textContent=fmt(saldo);
+
+  const pay=document.getElementById('resumo-payment-breakdown');
+  if(pay){
+    const exp=cur.filter(t=>t.type==='despesa');
+    const totals={cartao:0,pix:0,dinheiro:0};
+    exp.forEach(t=>{ const m=t.paymentMethod==='conta'?'dinheiro':(t.paymentMethod||'dinheiro'); if(totals[m]!==undefined) totals[m]+=Number(t.value||0); });
+    pay.innerHTML=['cartao','pix','dinheiro'].map(m=>`<div class="stat-card s-${m==='pix'?'green':m==='cartao'?'red':'gold'}"><div class="stat-val">${fmt(totals[m])}</div><div class="stat-lbl">${getPaymentName(m)}</div></div>`).join('');
+  }
+
+  const wrap=document.getElementById('resumo-donut-wrap');
+  if(wrap){
+    const exp=cur.filter(t=>t.type==='despesa');
+    if(!exp.length){
+      wrap.innerHTML='<div class="empty-state" style="padding:20px 0"><p>Sem despesas este mês ainda.</p></div>';
+    }else{
+      const byCat={}; exp.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+Number(t.value||0);});
+      const total=Object.values(byCat).reduce((a,b)=>a+b,0);
+      const entries=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+      let acc=0, parts=[];
+      const legend=entries.map(([catId,val])=>{ const pct=total?val/total*100:0; const color=CAT_COLOR[catId]||'#57617c'; const start=acc; acc+=pct; parts.push(`${color} ${start}% ${acc}%`); const info=getCatInfo('despesa',catId); return `<div class="legend-row"><span class="legend-dot" style="background:${color}"></span><span class="legend-name">${info.name}</span><span class="legend-pct">${Math.round(pct)}%</span></div>`; }).join('');
+      wrap.innerHTML=`<div class="donut" style="background:conic-gradient(${parts.join(',')})"><div class="donut-hole"><b>${fmtShort(total)}</b><span>total</span></div></div><div class="legend">${legend}</div>`;
+    }
+  }
+
+  const list=document.getElementById('resumo-list');
+  if(list){
+    const ordered=[...cur].sort((a,b)=>new Date(b.date)-new Date(a.date));
+    list.innerHTML=ordered.length ? ordered.map(t=>{
+      const info=getCatInfo(t.type,t.category);
+      const sign=t.type==='receita'?'+':'-';
+      return `<div class="txn-row"><div class="txn-icon">${info.icon}</div><div class="txn-main"><div class="txn-name">${escapeHtml(t.description||info.name)}</div><div class="txn-meta">${info.name} · ${getPaymentName(t.paymentMethod)}</div></div><div class="txn-value ${t.type==='receita'?'positive':'negative'}">${sign} ${fmt(t.value)}</div></div>`;
+    }).join('') : '<div class="empty-state"><p>Nenhum lançamento neste mês.</p></div>';
+  }
+}
+
 
 function updateStats(){
   const ym=currentMonthKey();
@@ -1863,8 +1938,8 @@ init();
   function go(target) {
     if (target === 'painel' || target === 'resumo') {
       closeOpenPanels();
-      if (typeof switchTab === 'function') switchTab('painel');
-      setActive(target === 'resumo' ? 'resumo' : 'painel');
+      if (typeof switchTab === 'function') switchTab(target);
+      setActive(target);
       window.scrollTo({top: 0, behavior: 'smooth'});
       return;
     }
@@ -1901,34 +1976,20 @@ init();
     const btn = nav && nav.querySelector('[data-flash-nav="lancar"]');
     if(!btn) return;
 
-    // O tema é aplicado no BODY (body[data-theme="..."]), então a cor
-    // precisa ser lida primeiro do estilo computado do body. Se lermos
-    // document.documentElement primeiro, pegamos o dourado padrão da :root
-    // e o botão fica dourado mesmo depois de trocar de tema.
-    const body = getComputedStyle(document.body);
     const root = getComputedStyle(document.documentElement);
-    const vars = ['--accent','--gold','--primary','--theme','--main'];
+    const body = getComputedStyle(document.body);
+    const vars = ['--accent','--primary','--gold','--theme','--main'];
     let color = '';
 
     for(const v of vars){
-      const a = body.getPropertyValue(v).trim() || root.getPropertyValue(v).trim();
+      const a = root.getPropertyValue(v).trim() || body.getPropertyValue(v).trim();
       if(a && (a.startsWith('#') || a.startsWith('rgb') || a.startsWith('hsl') || a.startsWith('oklch'))){
         color = a;
         break;
       }
     }
 
-    if(color) {
-      btn.style.setProperty('background', color, 'important');
-      btn.style.setProperty('box-shadow', '0 5px 18px color-mix(in srgb, ' + color + ' 28%, transparent)', 'important');
-    }
-
-    const onAccent = body.getPropertyValue('--on-accent').trim() || root.getPropertyValue('--on-accent').trim();
-    if(onAccent) {
-      btn.style.setProperty('color', onAccent, 'important');
-      const label = btn.querySelector('.label');
-      if(label) label.style.setProperty('color', onAccent, 'important');
-    }
+    if(color) btn.style.setProperty('background', color, 'important');
   }
 
   syncFlashLaunchTheme();
