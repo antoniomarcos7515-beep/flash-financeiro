@@ -707,6 +707,18 @@ input::placeholder { color: var(--text3); }
 }
 </style>
 
+
+<style id="flash-theme-final-css">
+@media (max-width:700px){
+  .flash-mobile-nav .launch{
+    background: var(--gold) !important;
+    color: var(--on-accent) !important;
+  }
+  .flash-mobile-nav .launch .label{
+    color: var(--on-accent) !important;
+  }
+}
+</style>
 </head>
 <body>
 <div class="wallpaper-img" id="wallpaper-img"></div>
@@ -1971,45 +1983,70 @@ init();
 
 <script id="flash-mobile-theme-js">
 (function(){
-  function syncFlashLaunchTheme(){
+  function syncFlashTheme(){
     const nav = document.querySelector('.flash-mobile-nav');
-    const btn = nav && nav.querySelector('[data-flash-nav="lancar"]');
-    if(!btn) return;
+    if(!nav) return;
 
-    const root = getComputedStyle(document.documentElement);
-    const body = getComputedStyle(document.body);
-    const vars = ['--accent','--primary','--gold','--theme','--main'];
-    let color = '';
+    const bodyStyle = getComputedStyle(document.body);
+    const gold = bodyStyle.getPropertyValue('--gold').trim();
+    const gold2 = bodyStyle.getPropertyValue('--gold2').trim();
+    const goldDim = bodyStyle.getPropertyValue('--gold-dim').trim();
 
-    for(const v of vars){
-      const a = root.getPropertyValue(v).trim() || body.getPropertyValue(v).trim();
-      if(a && (a.startsWith('#') || a.startsWith('rgb') || a.startsWith('hsl') || a.startsWith('oklch'))){
-        color = a;
-        break;
+    const launch = nav.querySelector('[data-flash-nav="lancar"]');
+    const buttons = nav.querySelectorAll('button');
+
+    // IMPORTANTE: lê a variável do BODY, onde os temas realmente sobrescrevem
+    // --gold. Não lê primeiro :root, pois isso manteria sempre o dourado padrão.
+    if(launch && gold){
+      launch.style.setProperty('background', gold, 'important');
+      launch.style.setProperty('color', bodyStyle.getPropertyValue('--on-accent').trim() || '#fff', 'important');
+      launch.style.setProperty('box-shadow', '0 5px 18px ' + goldDim, 'important');
+      const label = launch.querySelector('.label');
+      if(label){
+        label.style.setProperty('color', bodyStyle.getPropertyValue('--on-accent').trim() || '#fff', 'important');
       }
     }
 
-    if(color) btn.style.setProperty('background', color, 'important');
+    // O item ativo também acompanha o tema.
+    buttons.forEach(btn => {
+      if(btn.classList.contains('active') && btn !== launch){
+        btn.style.setProperty('color', gold || '#f4b728', 'important');
+        btn.style.setProperty('background', goldDim || 'rgba(224,169,74,.09)', 'important');
+      } else if(btn !== launch) {
+        btn.style.removeProperty('color');
+        btn.style.removeProperty('background');
+      }
+    });
   }
 
-  syncFlashLaunchTheme();
-  window.addEventListener('load', syncFlashLaunchTheme);
+  // Executa depois de o tema ser aplicado.
+  syncFlashTheme();
+  window.addEventListener('load', syncFlashTheme);
+  window.addEventListener('pageshow', syncFlashTheme);
 
   const observer = new MutationObserver(function(){
-    requestAnimationFrame(syncFlashLaunchTheme);
+    requestAnimationFrame(syncFlashTheme);
   });
+
   observer.observe(document.documentElement, {
     attributes:true,
     attributeFilter:['class','style','data-theme']
   });
+
   observer.observe(document.body, {
     attributes:true,
     attributeFilter:['class','style','data-theme']
   });
 
-  // Também acompanha mudanças de tema feitas por inputs/botões.
+  // Alguns temas são alterados por onclick/inputs sem mudar imediatamente o DOM.
   document.addEventListener('click', function(){
-    setTimeout(syncFlashLaunchTheme, 30);
+    setTimeout(syncFlashTheme, 20);
+    setTimeout(syncFlashTheme, 150);
+  }, true);
+
+  document.addEventListener('change', function(){
+    setTimeout(syncFlashTheme, 20);
+    setTimeout(syncFlashTheme, 150);
   }, true);
 })();
 </script>
