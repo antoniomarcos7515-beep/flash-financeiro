@@ -6,20 +6,29 @@
 <meta name="theme-color" content="#0b0f17">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Finia">
+<meta name="apple-mobile-web-app-title" content="FLASH">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="Finia — converse com seu dinheiro">
-<title>Finia — Assistente Financeiro</title>
+<meta name="description" content="FLASH — converse com seu dinheiro">
+<title>FLASH — Assistente Financeiro v2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
 <!-- PWA -->
-<link rel="manifest" href="manifest.json">
+<script>
+// O manifesto só é carregado quando o FLASH está em um servidor (http/https).
+// Ao abrir o HTML diretamente pelo computador (file://), evitamos erros de CORS.
+if (location.protocol === 'http:' || location.protocol === 'https:') {
+  const manifest = document.createElement('link');
+  manifest.rel = 'manifest';
+  manifest.href = 'manifest.json';
+  document.head.appendChild(manifest);
+}
+</script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script>
-if('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+if((location.protocol === 'http:' || location.protocol === 'https:') && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 </script>
 
@@ -548,7 +557,156 @@ input::placeholder { color: var(--text3); }
 @media (min-width: 640px) {
   body { max-width: 480px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-height: 100vh; }
 }
+
+#f-pagamento{width:100%;box-sizing:border-box;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:var(--radius-xs);padding:12px 13px;font:inherit;outline:none}
+#f-card-limit{width:100%;box-sizing:border-box}
 </style>
+
+<style id="flash-mobile-nav">
+@media (max-width: 700px) {
+  body { padding-bottom: 82px !important; }
+  header .tabs { display: none !important; }
+  header { min-height: 62px !important; }
+  .filter-bar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    scrollbar-width: none;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  .filter-bar::-webkit-scrollbar { display:none; }
+  .filter-bar .chip { flex: 0 0 auto !important; white-space: nowrap; }
+
+
+  .flash-mobile-nav {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    z-index: 9999;
+    height: 64px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: center;
+    gap: 2px;
+    padding: 5px 7px;
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 20px;
+    background: rgba(8,11,20,.94);
+    box-shadow: 0 12px 35px rgba(0,0,0,.55);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .flash-mobile-nav button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: #8991a8;
+    height: 54px;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .flash-mobile-nav button .icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .flash-mobile-nav button .label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .2px;
+  }
+
+  .flash-mobile-nav button.active {
+    color: #f4b728;
+    background: rgba(244,183,40,.09);
+  }
+
+  .flash-mobile-nav .launch {
+    color: #fff;
+    background: linear-gradient(145deg,#f4b728,#d99a10);
+    box-shadow: 0 5px 18px rgba(244,183,40,.25);
+  }
+
+  .flash-mobile-nav .launch .label { color: #11151e; }
+
+  .flash-mobile-filters {
+    display: flex !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 8px !important;
+    padding: 4px 2px 10px !important;
+    margin: 0 -2px !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+
+  .flash-mobile-filters::-webkit-scrollbar { display: none; }
+  .flash-mobile-filters > * { flex: 0 0 auto !important; }
+
+  .flash-mobile-nav-spacer { height: 4px; }
+}
+
+@media (min-width: 701px) {
+  .flash-mobile-nav { display: none; }
+}
+</style>
+
+
+<style id="flash-mobile-fixes">
+@media (max-width:700px){
+  /* Evita que o botão + antigo fique atrás do menu inferior */
+  .fab, .floating-add, .add-fab, .btn-fab,
+  #fab, #floating-add, #btn-add, #add-btn,
+  [data-action="add"], [data-action="novo-lancamento"].floating,
+  .quick-add, .quick-add-btn {
+    display:none !important;
+  }
+
+  /* O botão Lançar do menu fica sempre acima de qualquer conteúdo */
+  .flash-mobile-nav {
+    z-index: 100000 !important;
+  }
+  .flash-mobile-nav .launch {
+    position:relative;
+    z-index:100001;
+  }
+
+  /* Respeita o tema selecionado */
+  .flash-mobile-nav .launch {
+    background: var(--accent, var(--gold, #f4b728)) !important;
+    color: #fff !important;
+    box-shadow: 0 5px 18px color-mix(in srgb, var(--accent, #f4b728) 28%, transparent) !important;
+  }
+  .flash-mobile-nav .launch .label {
+    color: inherit !important;
+  }
+}
+
+/* fallback para navegadores sem color-mix */
+@supports not (background: color-mix(in srgb, red 20%, transparent)) {
+  @media (max-width:700px){
+    .flash-mobile-nav .launch {
+      box-shadow: 0 5px 18px rgba(244,183,40,.25) !important;
+    }
+  }
+}
+</style>
+
 </head>
 <body>
 <div class="wallpaper-img" id="wallpaper-img"></div>
@@ -557,9 +715,9 @@ input::placeholder { color: var(--text3); }
 <header>
   <div class="header-top">
     <a href="#" class="logo">
-      <img src="icon-192.png" class="logo-mark" alt="Finia">
+      <img src="icon-192.png" class="logo-mark" alt="FLASH">
       <div class="logo-text">
-        <div class="logo-name">Finia</div>
+        <div class="logo-name">FLASH</div>
         <div class="logo-tag">Assistente Financeiro</div>
       </div>
     </a>
@@ -600,6 +758,9 @@ input::placeholder { color: var(--text3); }
       </div>
     </div>
 
+    <div class="section-title">Dinheiro por forma de pagamento</div>
+    <div id="payment-breakdown" class="summary" style="margin-bottom:18px"></div>
+
     <div class="section-title">Por categoria</div>
     <div class="donut-wrap" id="donut-wrap">
       <div class="empty-state" style="padding:20px 0"><p>Sem despesas este mês ainda.</p></div>
@@ -618,6 +779,9 @@ input::placeholder { color: var(--text3); }
       <div class="chip active" data-f="todos" onclick="setTxnFilter('todos')">Todos</div>
       <div class="chip" data-f="receita" onclick="setTxnFilter('receita')">Receitas</div>
       <div class="chip" data-f="despesa" onclick="setTxnFilter('despesa')">Despesas</div>
+      <div class="chip" data-f="pix" onclick="setTxnFilter('pix')">⚡ Pix</div>
+      <div class="chip" data-f="dinheiro" onclick="setTxnFilter('dinheiro')">💵 Dinheiro</div>
+      <div class="chip" data-f="cartao" onclick="setTxnFilter('cartao')">💳 Cartão</div>
     </div>
     <div class="list" id="txn-list" style="padding-top:14px"></div>
   </section>
@@ -672,6 +836,14 @@ input::placeholder { color: var(--text3); }
             <label>Valor (R$) *</label>
             <input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0.01" required>
           </div>
+        <div class="form-group">
+          <label>Forma de pagamento</label>
+          <select id="f-pagamento">
+            <option value="dinheiro">💵 Dinheiro / Conta</option>
+            <option value="pix">⚡ Pix</option>
+            <option value="cartao">💳 Cartão de crédito</option>
+          </select>
+        </div>
           <div class="form-group">
             <label>Data *</label>
             <input type="date" id="f-data" required>
@@ -713,6 +885,11 @@ input::placeholder { color: var(--text3); }
       <div class="wallpaper-pattern-grid" id="wallpaper-pattern-grid"></div>
 
       <div class="form-group">
+          <label>Limite do cartão de crédito (R$)</label>
+          <input type="number" id="f-card-limit" placeholder="0,00" step="0.01" min="0">
+          <small style="display:block;margin-top:6px;color:var(--text2)">O disponível será calculado automaticamente a partir das compras lançadas no cartão.</small>
+        </div>
+        <div class="form-group">
         <label>Sua própria imagem</label>
         <input type="file" id="f-wallpaper" accept="image/*" onchange="handleWallpaperFile(event)">
       </div>
@@ -730,7 +907,7 @@ input::placeholder { color: var(--text3); }
         <input type="password" id="f-apikey" placeholder="sk-ant-...">
       </div>
       <p class="settings-note">
-        Sem uma chave, o Finia responde com análises calculadas localmente a partir dos seus lançamentos.
+        Sem uma chave, o FLASH responde com análises calculadas localmente a partir dos seus lançamentos.
         Com uma chave, o Assistente usa a API da Anthropic para conversas mais naturais — os dados só saem do seu navegador quando você envia uma pergunta, e a chave fica salva apenas neste dispositivo.
       </p>
       <button type="button" class="btn-primary" onclick="saveSettings()">Salvar</button>
@@ -744,7 +921,7 @@ input::placeholder { color: var(--text3); }
 
 <script>
 // ── DATA MODEL ──
-let data = { transactions: [], settings: { apiKey: '', theme: 'dourado', wallpaper: null, wallpaperPattern: 'none', wallpaperOpacity: 40 } };
+let data = { transactions: [], settings: { apiKey: '', cardLimit: 0, cardUsed: 0, theme: 'dourado', wallpaper: null, wallpaperPattern: 'none', wallpaperOpacity: 40 } };
 
 const WALLPAPER_PATTERNS = [
   {id:'none', name:'Nenhum'},
@@ -787,6 +964,7 @@ const CATS = {
     {id:'salario', name:'Salário', icon:'💼'},
     {id:'freelance', name:'Freelance', icon:'💻'},
     {id:'investimentos', name:'Investimentos', icon:'📈'},
+    {id:'cartao', name:'Cartão', icon:'💳'},
     {id:'outros', name:'Outros', icon:'📦'}
   ]
 };
@@ -976,6 +1154,7 @@ function renderPainel(){
   updateStats();
   updateHero();
   renderDonut();
+  renderPaymentBreakdown();
   renderAlerts();
   renderRecent();
 }
@@ -994,7 +1173,7 @@ function updateStats(){
 function updateHero(){
   const el=document.getElementById('hero-msg');
   if(!data.transactions.length){
-    el.innerHTML='Oi! Eu sou o Finia. Ainda não tenho lançamentos seus — toque no botão <strong>+</strong> para registrar seu primeiro gasto ou receita e eu começo a te ajudar com insights.';
+    el.innerHTML='Oi! Eu sou o FLASH. Ainda não tenho lançamentos seus — toque no botão <strong>+</strong> para registrar seu primeiro gasto ou receita e eu começo a te ajudar com insights.';
     return;
   }
   const ym=currentMonthKey(); const pym=prevMonthKey(ym);
@@ -1016,6 +1195,21 @@ function updateHero(){
   const top=topCategoryThisMonth();
   if(top) msg += ` A categoria que mais pesa é <strong>${top.category.name}</strong> (${fmt(top.total)}).`;
   el.innerHTML=msg;
+}
+
+function getPaymentName(method){
+  return ({cartao:'💳 Cartão',pix:'⚡ Pix',dinheiro:'💵 Dinheiro / Conta',conta:'💵 Dinheiro / Conta'})[method] || '💵 Dinheiro / Conta';
+}
+function renderPaymentBreakdown(){
+  const ym=currentMonthKey();
+  const cur=txnsForMonth(ym).filter(t=>t.type==='despesa');
+  const totals={cartao:0,pix:0,dinheiro:0};
+  cur.forEach(t=>{ const m=t.paymentMethod==='conta'?'dinheiro':(t.paymentMethod||'dinheiro'); if(totals[m]!==undefined) totals[m]+=Number(t.value||0); });
+  const el=document.getElementById('payment-breakdown');
+  if(!el) return;
+  el.innerHTML=['cartao','pix','dinheiro'].map(m=>`<div class="stat-card s-${m==='pix'?'green':m==='cartao'?'red':'gold'}">
+    <div class="stat-val">${fmt(totals[m])}</div><div class="stat-lbl">${getPaymentName(m)}</div>
+  </div>`).join('');
 }
 
 function renderDonut(){
@@ -1097,7 +1291,7 @@ function txnRowHTML(t){
     <div class="txn-icon" style="background:${color}22">${info.icon}</div>
     <div class="txn-info">
       <div class="txn-name">${escapeHtml(t.desc)}</div>
-      <div class="txn-meta">${t.account? escapeHtml(t.account)+' · ':''}${info.name} · ${dateFmt}</div>
+      <div class="txn-meta">${t.account? escapeHtml(t.account)+' · ':''}${info.name} · ${getPaymentName(t.paymentMethod)} · ${dateFmt}</div>
     </div>
     <div class="txn-val" style="color:${valColor}">${sign}${fmt(Math.abs(t.value))}</div>
   </div>`;
@@ -1123,7 +1317,7 @@ function setTxnFilter(f){
 function renderLancamentos(){
   const el=document.getElementById('txn-list');
   let list = allSorted();
-  if(txnFilter!=='todos') list=list.filter(t=>t.type===txnFilter);
+  if(txnFilter!=='todos') list=list.filter(t=>['pix','dinheiro','cartao'].includes(txnFilter) ? (t.paymentMethod==='conta'?'dinheiro':(t.paymentMethod||'dinheiro'))===txnFilter : t.type===txnFilter);
   if(!list.length){
     el.innerHTML=emptyStateHTML('📭','Nada por aqui','Ajuste o filtro ou adicione um novo lançamento.');
     return;
@@ -1146,6 +1340,7 @@ function openModal(){
   document.getElementById('f-id').value='';
   document.getElementById('f-desc').value='';
   document.getElementById('f-valor').value='';
+  const pm=document.getElementById('f-pagamento'); if(pm) pm.value='dinheiro';
   document.getElementById('f-conta').value='';
   document.getElementById('f-data').value=todayStr();
   selectedCat=CATS.despesa[0].id;
@@ -1186,6 +1381,7 @@ function editTransaction(id){
   document.getElementById('f-valor').value=t.value;
   document.getElementById('f-data').value=t.date;
   document.getElementById('f-conta').value=t.account||'';
+  const pm=document.getElementById('f-pagamento'); if(pm) pm.value=t.paymentMethod||'dinheiro';
   selectedCat=t.category;
   setType(t.type);
   document.getElementById('modal-overlay').classList.add('open');
@@ -1197,9 +1393,11 @@ function saveTransaction(e){
   const valor=parseFloat(document.getElementById('f-valor').value);
   const dt=document.getElementById('f-data').value;
   const conta=document.getElementById('f-conta').value.trim();
+  const pagamentoEl=document.getElementById('f-pagamento');
+  const paymentMethod=pagamentoEl ? pagamentoEl.value : 'dinheiro';
   if(!desc||!valor||!dt){ showToast('⚠️ Preencha os campos obrigatórios!','error'); return; }
 
-  const txn={ id: editingId||Date.now().toString(), desc, value:valor, type:currentType, category:selectedCat, account:conta, date:dt };
+  const txn={ id: editingId||Date.now().toString(), desc, value:valor, type:currentType, category:selectedCat, account:conta, paymentMethod, date:dt };
   if(editingId){
     const idx=data.transactions.findIndex(x=>x.id===editingId);
     if(idx>-1) data.transactions[idx]=txn;
@@ -1220,6 +1418,8 @@ function deleteFromModal(){
 
 // ── SETTINGS ──
 function openSettings(){
+  const cardInput=document.getElementById('f-card-limit');
+  if(cardInput) cardInput.value=data.settings.cardLimit||0;
   document.getElementById('f-apikey').value=data.settings.apiKey||'';
   renderThemeOptions();
   renderWallpaperPatterns();
@@ -1228,6 +1428,8 @@ function openSettings(){
 function closeSettings(){ document.getElementById('settings-overlay').classList.remove('open'); }
 function closeSettingsOutside(e){ if(e.target===document.getElementById('settings-overlay')) closeSettings(); }
 function saveSettings(){
+  const cardInput=document.getElementById('f-card-limit');
+  if(cardInput) data.settings.cardLimit=Math.max(0, Number(cardInput.value||0));
   data.settings.apiKey=document.getElementById('f-apikey').value.trim();
   save(); closeSettings();
   showToast('⚙️ Configurações salvas!');
@@ -1238,7 +1440,7 @@ function clearAllData(){
     const keepWallpaper=data.settings.wallpaper||null;
     const keepPattern=data.settings.wallpaperPattern||'none';
     const keepOpacity=data.settings.wallpaperOpacity!=null?data.settings.wallpaperOpacity:40;
-    data={transactions:[],settings:{apiKey:'',theme:keepTheme,wallpaper:keepWallpaper,wallpaperPattern:keepPattern,wallpaperOpacity:keepOpacity}};
+    data={transactions:[],settings:{apiKey:'',cardLimit:0,cardUsed:0,theme:keepTheme,wallpaper:keepWallpaper,wallpaperPattern:keepPattern,wallpaperOpacity:keepOpacity}};
     save();
     applyWallpaper();
     renderPainel(); renderLancamentos();
@@ -1248,6 +1450,35 @@ function clearAllData(){
     closeSettings();
     showToast('🗑️ Dados apagados.');
   }
+}
+
+
+// ── CARTÃO DE CRÉDITO ──
+function getCardLimit(){
+  return Number(data.settings.cardLimit || 0);
+}
+
+function getCardUsed(){
+  // O valor utilizado é calculado pelos lançamentos marcados como cartão,
+  // somado ao eventual valor inicial configurado.
+  const manual = Number(data.settings.cardUsed || 0);
+  const cardTxns = data.transactions.filter(t => t.paymentMethod === 'cartao');
+  const calculated = cardTxns.reduce((s,t) => s + (t.type === 'despesa' ? Number(t.value || 0) : 0), 0);
+  return Math.max(manual, calculated);
+}
+
+function getCardAvailable(){
+  return Math.max(0, getCardLimit() - getCardUsed());
+}
+
+function fmtCard(v){
+  return fmt(Number(v || 0));
+}
+
+function cardSummary(){
+  return `Limite do cartão: ${fmtCard(getCardLimit())}
+Valor utilizado: ${fmtCard(getCardUsed())}
+Valor disponível: ${fmtCard(getCardAvailable())}`;
 }
 
 // ── ASSISTENTE (CHAT) ──
@@ -1271,7 +1502,7 @@ function showTyping(){
 function removeTyping(){ const el=document.getElementById('typing-indicator'); if(el) el.remove(); }
 
 function addGreeting(){
-  appendMsg('bot','Oi! Eu sou o <strong>Finia</strong>, seu assistente financeiro. Posso te ajudar a entender seus gastos, detectar assinaturas e sugerir onde economizar. O que você quer saber?', true);
+  appendMsg('bot','Oi! Eu sou o <strong>FLASH</strong>, seu assistente financeiro. Posso te ajudar a entender seus gastos, detectar assinaturas e sugerir onde economizar. O que você quer saber?', true);
 }
 
 function sendSuggestion(text){
@@ -1283,13 +1514,19 @@ function sendChat(){
   const input=document.getElementById('chat-input');
   const text=input.value.trim();
   if(!text) return;
+
   appendMsg('user',text);
   input.value='';
   chatHistory.push({role:'user',content:text});
   showTyping();
+
+  // Com a API configurada, TODAS as perguntas passam pela IA.
+  // Isso permite perguntas naturais, perguntas de acompanhamento e assuntos
+  // que não estejam presos a uma lista fixa de palavras-chave.
   if(data.settings.apiKey){
     callClaudeAPI(text);
   } else {
+    // Sem API, mantém o modo local como fallback.
     setTimeout(()=>{
       removeTyping();
       const reply=localAssistant(text);
@@ -1300,44 +1537,194 @@ function sendChat(){
 }
 
 function localAssistant(text){
-  const t=text.toLowerCase();
+  const t = text.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
   if(!data.transactions.length){
     return 'Ainda não tenho nenhum lançamento seu. Adicione seus gastos e receitas na aba <strong>Lançamentos</strong> e eu te conto tudo sobre suas finanças!';
   }
-  const ym=currentMonthKey(); const pym=prevMonthKey(ym);
-  const cur=txnsForMonth(ym); const prev=txnsForMonth(pym);
-  const despesas=sumByType(cur,'despesa'); const receitas=sumByType(cur,'receita'); const saldo=receitas-despesas;
+
+  const ym=currentMonthKey();
+  const pym=prevMonthKey(ym);
+  const cur=txnsForMonth(ym);
+  const prev=txnsForMonth(pym);
+  const despesas=sumByType(cur,'despesa');
+  const receitas=sumByType(cur,'receita');
+  const saldo=receitas-despesas;
   const prevDespesas=sumByType(prev,'despesa');
 
+  // Retorna o total de uma categoria do mês atual.
+  function totalCategoria(categoryId){
+    return cur
+      .filter(x => x.type === 'despesa' && x.category === categoryId)
+      .reduce((s,x) => s + Number(x.value || 0), 0);
+  }
+
+  // Tenta identificar uma categoria pelo nome ou por palavras relacionadas.
+  function identificarCategoria(pergunta){
+    const aliases = {
+      alimentacao: ['alimentacao','comida','comidas','restaurante','restaurantes','lanche','lanches','mercado','supermercado','feira'],
+      transporte: ['transporte','combustivel','gasolina','uber','taxi','onibus','moto','carro'],
+      moradia: ['moradia','casa','aluguel','condominio','condominio'],
+      saude: ['saude','farmacia','remedio','medicamento','medicamentos','consulta','hospital'],
+      lazer: ['lazer','diversao','cinema','passeio','jogo','jogos'],
+      compras: ['compras','compra','shopping','roupa','roupas'],
+      assinaturas: ['assinatura','assinaturas','streaming','netflix','spotify','amazon prime','prime video'],
+      educacao: ['educacao','escola','faculdade','curso','cursos','livro','livros'],
+      emprestimo: ['emprestimo','emprestimos','financiamento'],
+      celular: ['celular','telefone','telefonia','internet'],
+      cartao: ['cartao','cartao de credito','credito'],
+      outros: ['outros','outro']
+    };
+
+    const ids = Object.keys(aliases);
+    for(const id of ids){
+      if(aliases[id].some(word => pergunta.includes(word))){
+        const exists = CATS.despesa.find(c => c.id === id);
+        if(exists) return exists;
+      }
+    }
+
+    // Também permite reconhecer pelo nome real da categoria.
+    const byName = CATS.despesa.find(c => {
+      const name = String(c.name || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      return name && pergunta.includes(name);
+    });
+    return byName || null;
+  }
+
+  // Perguntas de assinaturas primeiro.
   if(t.includes('assinatura')){
     const subs=detectSubscriptions();
-    if(!subs.length) return 'Não identifiquei nenhuma assinatura recorrente ainda — preciso de pelo menos dois meses com o mesmo gasto para detectar um padrão.';
-    return `Encontrei ${subs.length} possível(is) assinatura(s) recorrente(s):<br>` + subs.map(s=>`• <strong>${escapeHtml(s.desc)}</strong> — ${fmt(s.value)}/mês`).join('<br>');
+    if(!subs.length){
+      return 'Não identifiquei nenhuma assinatura recorrente ainda — preciso de pelo menos dois meses com o mesmo gasto para detectar um padrão.';
+    }
+    return `Encontrei ${subs.length} possível(is) assinatura(s) recorrente(s):<br>` +
+      subs.map(s=>`• <strong>${escapeHtml(s.desc)}</strong> — ${fmt(s.value)}/mês`).join('<br>');
   }
+
+  // Comparação com o mês anterior.
+  if(t.includes('compar') || t.includes('mes passado') || t.includes('mes anterior')){
+    if(!prev.length) return 'Ainda não tenho dados do mês passado para comparar.';
+    const diff=despesas-prevDespesas;
+    if(diff===0){
+      return `Este mês você gastou ${fmt(despesas)}, o mesmo valor do mês passado.`;
+    }
+    const dir = diff>0 ? 'a mais' : 'a menos';
+    return `Este mês você gastou ${fmt(despesas)}. No mês passado foram ${fmt(prevDespesas)} — ${fmt(Math.abs(diff))} ${dir}.`;
+  }
+
+  // Perguntas sobre maior/menor gasto.
+  if(
+    (t.includes('maior') && (t.includes('gasto') || t.includes('despesa'))) ||
+    t.includes('onde gasto mais') ||
+    t.includes('onde estou gastando mais')
+  ){
+    const top=topCategoryThisMonth();
+    if(!top) return 'Ainda não tenho despesas suficientes este mês para identificar seu maior gasto.';
+    return `Seu maior gasto este mês é <strong>${escapeHtml(top.category.name)}</strong>, com <strong>${fmt(top.total)}</strong>.`;
+  }
+
+  if(
+    (t.includes('menor') && (t.includes('gasto') || t.includes('despesa')))
+  ){
+    const totals = CATS.despesa
+      .map(c => ({category:c,total:totalCategoria(c.id)}))
+      .filter(x => x.total > 0)
+      .sort((a,b) => a.total-b.total);
+
+    if(!totals.length) return 'Ainda não tenho despesas este mês.';
+    const item=totals[0];
+    return `Seu menor gasto entre as categorias registradas este mês é <strong>${escapeHtml(item.category.name)}</strong>, com <strong>${fmt(item.total)}</strong>.`;
+  }
+
+  // Perguntas de economia.
   if(t.includes('economizar') || t.includes('economia') || t.includes('poupar')){
     const top=topCategoryThisMonth();
     if(!top) return 'Ainda não tenho despesas suficientes este mês para sugerir onde economizar.';
-    return `Sua maior categoria de gasto este mês é <strong>${top.category.name}</strong>, com ${fmt(top.total)}. Vale revisar esses gastos primeiro — costuma ser onde dá pra economizar mais rápido.`;
+    return `Sua maior categoria de gasto este mês é <strong>${escapeHtml(top.category.name)}</strong>, com <strong>${fmt(top.total)}</strong>. Vale revisar esses gastos primeiro — é onde você tem maior potencial de economia.`;
   }
-  if(t.includes('compar')){
-    if(!prev.length) return 'Ainda não tenho dados do mês passado para comparar.';
-    const diff=despesas-prevDespesas;
-    const dir = diff>0? 'a mais':'a menos';
-    return `Este mês: ${fmt(despesas)} em despesas. Mês passado: ${fmt(prevDespesas)}. Isso é ${fmt(Math.abs(diff))} ${dir}.`;
+
+  // Perguntas sobre cartão de crédito.
+  if(
+    t.includes('cartao') ||
+    t.includes('cartao de credito') ||
+    t.includes('fatura') ||
+    t.includes('limite do cartao') ||
+    t.includes('disponivel no cartao') ||
+    t.includes('disponivel do cartao') ||
+    t.includes('gastei no cartao') ||
+    t.includes('usei no cartao') ||
+    t.includes('quanto tenho no cartao')
+  ){
+    const limit = getCardLimit();
+    const used = getCardUsed();
+    const available = getCardAvailable();
+
+    if(t.includes('disponivel') || t.includes('quanto posso gastar') || t.includes('quanto ainda posso')){
+      if(limit <= 0) return 'Você ainda não cadastrou o limite do seu cartão. Vá em ⚙️ Configurações e informe o limite do cartão para eu calcular o disponível.';
+      return `Você tem <strong>${fmtCard(available)}</strong> disponíveis no cartão.`;
+    }
+
+    if(t.includes('limite')){
+      if(limit <= 0) return 'Você ainda não cadastrou o limite do seu cartão. Vá em ⚙️ Configurações e informe o limite do cartão.';
+      return `O limite do seu cartão é <strong>${fmtCard(limit)}</strong>.`;
+    }
+
+    if(t.includes('fatura')){
+      return `Sua fatura atual é de <strong>${fmtCard(used)}</strong>, considerando as compras no cartão registradas no FLASH.`;
+    }
+
+    if(t.includes('gastei') || t.includes('usei') || t.includes('utiliz')){
+      return `Você já utilizou <strong>${fmtCard(used)}</strong> do limite do cartão.`;
+    }
+
+    return `Você tem <strong>${fmtCard(available)}</strong> disponíveis no cartão. O limite é <strong>${fmtCard(limit)}</strong> e você já utilizou <strong>${fmtCard(used)}</strong>.`;
   }
-  if((t.includes('quanto') && t.includes('gast')) || t.includes('gastei') || t.includes('gasto')){
-    const top=topCategoryThisMonth();
-    let msg=`Você gastou ${fmt(despesas)} este mês.`;
-    if(top) msg += ` A maior parte foi com <strong>${top.category.name}</strong> (${fmt(top.total)}).`;
-    return msg;
+
+  // Perguntas específicas de categoria.
+  const categoria = identificarCategoria(t);
+  if(categoria && (
+    t.includes('quanto') ||
+    t.includes('gastei') ||
+    t.includes('gasto') ||
+    t.includes('despesa') ||
+    t.includes('gastando') ||
+    t.includes('valor')
+  )){
+    const total=totalCategoria(categoria.id);
+
+    if(total <= 0){
+      return `Você ainda não teve gastos em <strong>${escapeHtml(categoria.name)}</strong> este mês.`;
+    }
+
+    return `Você gastou <strong>${fmt(total)}</strong> em <strong>${escapeHtml(categoria.name)}</strong> este mês.`;
   }
-  if(t.includes('saldo')){
-    return saldo>=0 ? `Seu saldo este mês está positivo: <strong>${fmt(saldo)}</strong>.` : `Seu saldo este mês está negativo: <strong>${fmt(Math.abs(saldo))}</strong> no vermelho.`;
+
+  // Total geral de despesas.
+  if(
+    (t.includes('quanto') && t.includes('gast')) ||
+    t.includes('gastei') ||
+    t.includes('gasto') ||
+    t.includes('despesa')
+  ){
+    return `Você gastou <strong>${fmt(despesas)}</strong> este mês.`;
   }
-  if(t.includes('receita') || t.includes('ganhei') || t.includes('recebi')){
-    return `Você recebeu ${fmt(receitas)} este mês.`;
+
+  // Saldo.
+  if(t.includes('saldo') || t.includes('quanto sobrou') || t.includes('quanto tenho')){
+    return saldo>=0
+      ? `Seu saldo este mês está positivo: <strong>${fmt(saldo)}</strong>.`
+      : `Seu saldo este mês está negativo: <strong>${fmt(Math.abs(saldo))}</strong> no vermelho.`;
   }
-  return 'Posso te ajudar com: quanto você gastou, seu saldo, assinaturas detectadas, comparação com o mês passado e onde economizar. É só perguntar — ou usar os atalhos abaixo.';
+
+  // Receitas.
+  if(t.includes('receita') || t.includes('ganhei') || t.includes('recebi') || t.includes('quanto recebi')){
+    return `Você recebeu <strong>${fmt(receitas)}</strong> este mês.`;
+  }
+
+  return 'Posso te ajudar com seus gastos por categoria, total de despesas, saldo, receitas, maior ou menor gasto, assinaturas, comparação com o mês passado e onde economizar. É só perguntar.';
 }
 
 function buildFinanceSummary(){
@@ -1351,12 +1738,46 @@ function buildFinanceSummary(){
   const subs=detectSubscriptions();
   const subsLines=subs.map(s=>`- ${s.desc}: ${fmt(s.value)}/mês`).join('\n');
   const recentLines=allSorted().slice(0,15).map(t=>`- ${t.date} | ${t.type==='receita'?'Receita':'Despesa'} | ${t.desc} | ${fmt(t.value)} | ${getCatInfo(t.type,t.category).name}`).join('\n');
-  return `Mês atual: ${monthLabel(ym)}\nReceitas do mês: ${fmt(receitas)}\nDespesas do mês: ${fmt(despesas)}\nDespesas do mês passado: ${fmt(prevDespesas)}\nGastos por categoria (mês atual):\n${catLines||'(nenhum)'}\nAssinaturas/recorrências detectadas:\n${subsLines||'(nenhuma)'}\nÚltimos lançamentos:\n${recentLines||'(nenhum)'}`;
+  return `Dados do cartão de crédito:\n${cardSummary()}\n\nMês atual: ${monthLabel(ym)}\nReceitas do mês: ${fmt(receitas)}\nDespesas do mês: ${fmt(despesas)}\nDespesas do mês passado: ${fmt(prevDespesas)}\nGastos por categoria (mês atual):\n${catLines||'(nenhum)'}\nAssinaturas/recorrências detectadas:\n${subsLines||'(nenhuma)'}\nÚltimos lançamentos:\n${recentLines||'(nenhum)'}`;
 }
 
 function callClaudeAPI(userText){
   const summary=buildFinanceSummary();
-  const sys = `Você é o Finia, um assistente financeiro pessoal amigável e direto, respondendo em português do Brasil. Use os dados financeiros do usuário abaixo para responder de forma específica, curta (no máximo 5 frases) e útil. Nunca invente números que não estão nos dados. Dados financeiros do usuário:\n${summary}`;
+  const sys = `Você é o FLASH, um assistente financeiro pessoal inteligente, natural e amigável, respondendo em português do Brasil.
+
+OBJETIVO PRINCIPAL:
+Entender a intenção do usuário mesmo quando ele escrever de forma informal, com erros de digitação, abreviações, gírias ou frases incompletas. Não dependa de palavras-chave exatas. Interprete a pergunta pelo contexto.
+
+CONVERSA E CONTEXTO:
+1. Responda exatamente ao que o usuário está perguntando.
+2. Use o histórico da conversa para entender referências como "e o mês passado?", "quanto disso?", "e no cartão?", "qual deles?", "por quê?" e outras perguntas de acompanhamento.
+3. Não obrigue o usuário a repetir informações que já estejam no histórico.
+4. Se uma pergunta tiver mais de uma interpretação razoável, faça uma pergunta curta de esclarecimento em vez de inventar uma interpretação.
+5. Entenda datas e períodos naturais, como "hoje", "ontem", "essa semana", "mês passado", "este ano" e intervalos mencionados pelo usuário, usando somente os dados disponíveis no resumo financeiro.
+6. Entenda variações como "gastei", "gastos", "despesas", "torrei", "saiu", "quanto foi", "quanto usei", "quanto sobrou", etc.
+7. Entenda categorias e seus termos relacionados. Por exemplo, "comida", "mercado" e "restaurante" podem indicar Alimentação quando isso fizer sentido pelos dados.
+
+DADOS FINANCEIROS:
+8. Use somente os dados financeiros fornecidos no resumo. Nunca invente, estime ou altere números.
+9. Se a pergunta pedir o valor gasto em uma categoria, informe primeiro o valor daquela categoria.
+10. Se a categoria não tiver gastos no período solicitado, diga isso claramente.
+11. Se pedir o total de despesas, informe o total correspondente ao período.
+12. Se perguntar sobre saldo, considere receitas menos despesas conforme os dados fornecidos.
+13. Se perguntar sobre receitas, informe as receitas correspondentes ao período.
+14. Se perguntar sobre maior ou menor gasto, informe categoria e valor quando os dados permitirem.
+15. Para assinaturas, use as recorrências detectadas no resumo e deixe claro quando forem apenas possíveis recorrências.
+16. Para cartão de crédito, diferencie limite, utilizado, disponível e fatura. O disponível é limite menos utilizado.
+17. Uma compra no cartão é um gasto e aumenta a utilização do limite, mas não deve ser descontada novamente do saldo da conta até o pagamento da fatura.
+
+ESTILO:
+18. Seja natural e converse como um assistente de verdade, não como um robô preso a respostas prontas.
+19. Para perguntas simples de valor, responda de forma curta.
+20. Para análise, comparação, planejamento ou conselho, explique com mais detalhes e use os números do usuário.
+21. Se o usuário perguntar algo que não tenha relação com as finanças, responda de forma útil, mas deixe claro quando a informação não puder ser obtida dos dados do FLASH.
+22. Não diga que só pode responder uma lista fixa de perguntas. Tente compreender a intenção primeiro.
+
+Dados financeiros do usuário:
+${summary}`;
   fetch('https://api.anthropic.com/v1/messages', {
     method:'POST',
     headers:{
@@ -1367,9 +1788,9 @@ function callClaudeAPI(userText){
     },
     body: JSON.stringify({
       model:'claude-sonnet-4-6',
-      max_tokens:500,
+      max_tokens:1200,
       system: sys,
-      messages: chatHistory.slice(-10).map(m=>({role:m.role,content:m.content}))
+      messages: chatHistory.slice(-20).map(m=>({role:m.role,content:m.content}))
     })
   }).then(r=>r.json()).then(resp=>{
     removeTyping();
@@ -1405,5 +1826,118 @@ function init(){
 init();
 
 </script>
+
+<nav class="flash-mobile-nav" aria-label="Navegação principal">
+  <button type="button" data-flash-nav="painel" class="active">
+    <span class="icon">⌂</span><span class="label">Painel</span>
+  </button>
+  <button type="button" data-flash-nav="lancar" class="launch">
+    <span class="icon">＋</span><span class="label">Lançar</span>
+  </button>
+  <button type="button" data-flash-nav="resumo">
+    <span class="icon">▥</span><span class="label">Resumo</span>
+  </button>
+  <button type="button" data-flash-nav="assistente">
+    <span class="icon">✦</span><span class="label">Assistente</span>
+  </button>
+  <button type="button" data-flash-nav="config">
+    <span class="icon">⚙</span><span class="label">Config.</span>
+  </button>
+</nav>
+
+
+<script id="flash-mobile-nav-js">
+(function () {
+  function setActive(target) {
+    document.querySelectorAll('.flash-mobile-nav button').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.flashNav === target);
+    });
+  }
+  function closeOpenPanels() {
+    // Fecha qualquer painel/modal aberto antes de trocar a navegação.
+    // Isso evita que Configurações fique por cima do Painel no celular.
+    if (typeof closeSettings === 'function') closeSettings();
+    if (typeof closeModal === 'function') closeModal();
+  }
+
+  function go(target) {
+    if (target === 'painel' || target === 'resumo') {
+      closeOpenPanels();
+      if (typeof switchTab === 'function') switchTab('painel');
+      setActive(target === 'resumo' ? 'resumo' : 'painel');
+      window.scrollTo({top: 0, behavior: 'smooth'});
+      return;
+    }
+    if (target === 'lancar') {
+      if (typeof closeSettings === 'function') closeSettings();
+      if (typeof openModal === 'function') openModal();
+      setActive('lancar');
+      return;
+    }
+    if (target === 'assistente') {
+      if (typeof closeSettings === 'function') closeSettings();
+      if (typeof closeModal === 'function') closeModal();
+      if (typeof switchTab === 'function') switchTab('assistente');
+      setActive('assistente');
+      return;
+    }
+    if (target === 'config') {
+      if (typeof closeModal === 'function') closeModal();
+      if (typeof openSettings === 'function') openSettings();
+      setActive('config');
+    }
+  }
+  document.querySelectorAll('.flash-mobile-nav button').forEach(function(btn) {
+    btn.addEventListener('click', function(){ go(btn.dataset.flashNav); });
+  });
+})();
+</script>
+
+
+<script id="flash-mobile-theme-js">
+(function(){
+  function syncFlashLaunchTheme(){
+    const nav = document.querySelector('.flash-mobile-nav');
+    const btn = nav && nav.querySelector('[data-flash-nav="lancar"]');
+    if(!btn) return;
+
+    const root = getComputedStyle(document.documentElement);
+    const body = getComputedStyle(document.body);
+    const vars = ['--accent','--primary','--gold','--theme','--main'];
+    let color = '';
+
+    for(const v of vars){
+      const a = root.getPropertyValue(v).trim() || body.getPropertyValue(v).trim();
+      if(a && (a.startsWith('#') || a.startsWith('rgb') || a.startsWith('hsl') || a.startsWith('oklch'))){
+        color = a;
+        break;
+      }
+    }
+
+    if(color) btn.style.setProperty('background', color, 'important');
+  }
+
+  syncFlashLaunchTheme();
+  window.addEventListener('load', syncFlashLaunchTheme);
+
+  const observer = new MutationObserver(function(){
+    requestAnimationFrame(syncFlashLaunchTheme);
+  });
+  observer.observe(document.documentElement, {
+    attributes:true,
+    attributeFilter:['class','style','data-theme']
+  });
+  observer.observe(document.body, {
+    attributes:true,
+    attributeFilter:['class','style','data-theme']
+  });
+
+  // Também acompanha mudanças de tema feitas por inputs/botões.
+  document.addEventListener('click', function(){
+    setTimeout(syncFlashLaunchTheme, 30);
+  }, true);
+})();
+</script>
+
 </body>
 </html>
