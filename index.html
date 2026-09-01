@@ -1075,8 +1075,8 @@ function detectSubscriptions(){
   return Object.values(groups).filter(g=>g.months.size>=2).map(g=>({desc:g.desc,value:g.value,months:[...g.months].sort()}));
 }
 
-function topCategoryThisMonth(){
-  const ym=currentMonthKey();
+function topCategoryThisMonth(ym){
+  ym = ym || currentMonthKey();
   const cur=txnsForMonth(ym).filter(t=>t.type==='despesa');
   if(!cur.length) return null;
   const byCat={};
@@ -1664,6 +1664,31 @@ function sendChat(){
   }
 }
 
+// Tenta reconhecer um mês específico mencionado no texto (ex.: "agosto",
+// "agosto de 2026"). Se não houver ano explícito, assume o ano atual — a
+// menos que esse mês ainda não tenha ocorrido neste ano, caso em que assume
+// o ano anterior. Retorna uma chave "AAAA-MM" ou null se nenhum mês foi citado.
+const MESES_PT = ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function parseMonthFromText(t){
+  for(let i=0;i<MESES_PT.length;i++){
+    const nome=MESES_PT[i];
+    const idx=t.indexOf(nome);
+    if(idx===-1) continue;
+    const rest=t.slice(idx+nome.length);
+    const yearMatch=rest.match(/^[^0-9]{0,6}([0-9]{4})/);
+    let year;
+    if(yearMatch){
+      year=Number(yearMatch[1]);
+    } else {
+      const now=new Date();
+      year=now.getFullYear();
+      if((i+1) > (now.getMonth()+1)) year-=1;
+    }
+    return year+'-'+String(i+1).padStart(2,'0');
+  }
+  return null;
+}
+
 function localAssistant(text){
   const t = text.toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -1672,7 +1697,10 @@ function localAssistant(text){
     return 'Ainda não tenho nenhum lançamento seu. Adicione seus gastos e receitas na aba <strong>Lançamentos</strong> e eu te conto tudo sobre suas finanças!';
   }
 
-  const ym=currentMonthKey();
+  const realYm=currentMonthKey();
+  const explicitYm=parseMonthFromText(t);
+  const ym=explicitYm||realYm;
+  const periodo = (ym===realYm) ? 'este mês' : ('em '+monthLabel(ym));
   const pym=prevMonthKey(ym);
   const cur=txnsForMonth(ym);
   const prev=txnsForMonth(pym);
@@ -1749,9 +1777,9 @@ function localAssistant(text){
     t.includes('onde gasto mais') ||
     t.includes('onde estou gastando mais')
   ){
-    const top=topCategoryThisMonth();
-    if(!top) return 'Ainda não tenho despesas suficientes este mês para identificar seu maior gasto.';
-    return `Seu maior gasto este mês é <strong>${escapeHtml(top.category.name)}</strong>, com <strong>${fmt(top.total)}</strong>.`;
+    const top=topCategoryThisMonth(ym);
+    if(!top) return `Ainda não tenho despesas suficientes ${periodo} para identificar seu maior gasto.`;
+    return `Seu maior gasto ${periodo} é <strong>${escapeHtml(top.category.name)}</strong>, com <strong>${fmt(top.total)}</strong>.`;
   }
 
   if(
@@ -1762,16 +1790,16 @@ function localAssistant(text){
       .filter(x => x.total > 0)
       .sort((a,b) => a.total-b.total);
 
-    if(!totals.length) return 'Ainda não tenho despesas este mês.';
+    if(!totals.length) return `Ainda não tenho despesas ${periodo}.`;
     const item=totals[0];
-    return `Seu menor gasto entre as categorias registradas este mês é <strong>${escapeHtml(item.category.name)}</strong>, com <strong>${fmt(item.total)}</strong>.`;
+    return `Seu menor gasto entre as categorias registradas ${periodo} é <strong>${escapeHtml(item.category.name)}</strong>, com <strong>${fmt(item.total)}</strong>.`;
   }
 
   // Perguntas de economia.
   if(t.includes('economizar') || t.includes('economia') || t.includes('poupar')){
-    const top=topCategoryThisMonth();
-    if(!top) return 'Ainda não tenho despesas suficientes este mês para sugerir onde economizar.';
-    return `Sua maior categoria de gasto este mês é <strong>${escapeHtml(top.category.name)}</strong>, com <strong>${fmt(top.total)}</strong>. Vale revisar esses gastos primeiro — é onde você tem maior potencial de economia.`;
+    const top=topCategoryThisMonth(ym);
+    if(!top) return `Ainda não tenho despesas suficientes ${periodo} para sugerir onde economizar.`;
+    return `Sua maior categoria de gasto ${periodo} é <strong>${escapeHtml(top.category.name)}</strong>, com <strong>${fmt(top.total)}</strong>. Vale revisar esses gastos primeiro — é onde você tem maior potencial de economia.`;
   }
 
   // Perguntas sobre cartão de crédito.
@@ -1824,10 +1852,10 @@ function localAssistant(text){
     const total=totalCategoria(categoria.id);
 
     if(total <= 0){
-      return `Você ainda não teve gastos em <strong>${escapeHtml(categoria.name)}</strong> este mês.`;
+      return `Você ainda não teve gastos em <strong>${escapeHtml(categoria.name)}</strong> ${periodo}.`;
     }
 
-    return `Você gastou <strong>${fmt(total)}</strong> em <strong>${escapeHtml(categoria.name)}</strong> este mês.`;
+    return `Você gastou <strong>${fmt(total)}</strong> em <strong>${escapeHtml(categoria.name)}</strong> ${periodo}.`;
   }
 
   // Total geral de despesas.
@@ -1837,36 +1865,50 @@ function localAssistant(text){
     t.includes('gasto') ||
     t.includes('despesa')
   ){
-    return `Você gastou <strong>${fmt(despesas)}</strong> este mês.`;
+    return `Você gastou <strong>${fmt(despesas)}</strong> ${periodo}.`;
   }
 
   // Saldo.
   if(t.includes('saldo') || t.includes('quanto sobrou') || t.includes('quanto tenho')){
     return saldo>=0
-      ? `Seu saldo este mês está positivo: <strong>${fmt(saldo)}</strong>.`
-      : `Seu saldo este mês está negativo: <strong>${fmt(Math.abs(saldo))}</strong> no vermelho.`;
+      ? `Seu saldo ${periodo} está positivo: <strong>${fmt(saldo)}</strong>.`
+      : `Seu saldo ${periodo} está negativo: <strong>${fmt(Math.abs(saldo))}</strong> no vermelho.`;
   }
 
   // Receitas.
   if(t.includes('receita') || t.includes('ganhei') || t.includes('recebi') || t.includes('quanto recebi')){
-    return `Você recebeu <strong>${fmt(receitas)}</strong> este mês.`;
+    return `Você recebeu <strong>${fmt(receitas)}</strong> ${periodo}.`;
   }
 
   return 'Posso te ajudar com seus gastos por categoria, total de despesas, saldo, receitas, maior ou menor gasto, assinaturas, comparação com o mês passado e onde economizar. É só perguntar.';
 }
 
 function buildFinanceSummary(){
-  const ym=currentMonthKey(); const pym=prevMonthKey(ym);
-  const cur=txnsForMonth(ym); const prev=txnsForMonth(pym);
-  const despesas=sumByType(cur,'despesa'); const receitas=sumByType(cur,'receita');
-  const prevDespesas=sumByType(prev,'despesa');
-  const byCat={};
-  cur.filter(t=>t.type==='despesa').forEach(t=>byCat[t.category]=(byCat[t.category]||0)+t.value);
-  const catLines=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([id,v])=>`- ${getCatInfo('despesa',id).name}: ${fmt(v)}`).join('\n');
+  const ymAtual=currentMonthKey();
+
+  // Agrupa TODOS os lançamentos por mês (não só o mês atual/anterior), para
+  // que perguntas sobre qualquer mês específico (ex.: "agosto de 2026")
+  // possam ser respondidas com os números corretos daquele mês.
+  const porMes={};
+  data.transactions.forEach(t=>{
+    const k=monthKey(t.date);
+    (porMes[k]=porMes[k]||[]).push(t);
+  });
+  const resumoMeses=Object.keys(porMes).sort().map(k=>{
+    const txns=porMes[k];
+    const r=sumByType(txns,'receita'), d=sumByType(txns,'despesa');
+    const byCat={};
+    txns.filter(t=>t.type==='despesa').forEach(t=>byCat[t.category]=(byCat[t.category]||0)+t.value);
+    const catLines=Object.entries(byCat).sort((a,b)=>b[1]-a[1])
+      .map(([id,v])=>`    - ${getCatInfo('despesa',id).name}: ${fmt(v)}`).join('\n');
+    return `- ${capitalize(monthLabel(k))} (chave ${k})${k===ymAtual?' [ESTE É O MÊS ATUAL]':''}: Receitas ${fmt(r)} | Despesas ${fmt(d)} | Saldo ${fmt(r-d)}\n${catLines||'    (sem despesas por categoria)'}`;
+  }).join('\n');
+
   const subs=detectSubscriptions();
   const subsLines=subs.map(s=>`- ${s.desc}: ${fmt(s.value)}/mês`).join('\n');
   const recentLines=allSorted().slice(0,15).map(t=>`- ${t.date} | ${t.type==='receita'?'Receita':'Despesa'} | ${t.desc} | ${fmt(t.value)} | ${getCatInfo(t.type,t.category).name}`).join('\n');
-  return `Dados do cartão de crédito:\n${cardSummary()}\n\nMês atual: ${monthLabel(ym)}\nReceitas do mês: ${fmt(receitas)}\nDespesas do mês: ${fmt(despesas)}\nDespesas do mês passado: ${fmt(prevDespesas)}\nGastos por categoria (mês atual):\n${catLines||'(nenhum)'}\nAssinaturas/recorrências detectadas:\n${subsLines||'(nenhuma)'}\nÚltimos lançamentos:\n${recentLines||'(nenhum)'}`;
+
+  return `Hoje é ${todayStr()} — o mês atual é ${capitalize(monthLabel(ymAtual))} (chave ${ymAtual}).\n\nDados do cartão de crédito:\n${cardSummary()}\n\nResumo por mês (contém TODOS os meses com lançamentos registrados):\n${resumoMeses||'(nenhum lançamento registrado ainda)'}\n\nAssinaturas/recorrências detectadas:\n${subsLines||'(nenhuma)'}\n\nÚltimos lançamentos:\n${recentLines||'(nenhum)'}`;
 }
 
 function callClaudeAPI(userText){
@@ -1881,7 +1923,7 @@ CONVERSA E CONTEXTO:
 2. Use o histórico da conversa para entender referências como "e o mês passado?", "quanto disso?", "e no cartão?", "qual deles?", "por quê?" e outras perguntas de acompanhamento.
 3. Não obrigue o usuário a repetir informações que já estejam no histórico.
 4. Se uma pergunta tiver mais de uma interpretação razoável, faça uma pergunta curta de esclarecimento em vez de inventar uma interpretação.
-5. Entenda datas e períodos naturais, como "hoje", "ontem", "essa semana", "mês passado", "este ano" e intervalos mencionados pelo usuário, usando somente os dados disponíveis no resumo financeiro.
+5. Entenda datas e períodos naturais, como "hoje", "ontem", "essa semana", "mês passado", "este ano" e intervalos mencionados pelo usuário, usando somente os dados disponíveis no resumo financeiro. Os dados abaixo trazem um "Resumo por mês" com uma linha para CADA mês que tem lançamentos, identificada pelo nome do mês, ano e uma chave AAAA-MM. Quando o usuário citar um mês específico (ex.: "agosto", "agosto de 2026", "julho"), use exatamente os valores da linha daquele mês — nunca responda com os valores do mês atual (marcado como [ESTE É O MÊS ATUAL]) quando um mês diferente for perguntado. Se o mês perguntado não aparecer no resumo, diga que não há lançamentos registrados naquele mês, em vez de inventar ou usar outro mês. Só use o mês atual quando o usuário não especificar nenhum período.
 6. Entenda variações como "gastei", "gastos", "despesas", "torrei", "saiu", "quanto foi", "quanto usei", "quanto sobrou", etc.
 7. Entenda categorias e seus termos relacionados. Por exemplo, "comida", "mercado" e "restaurante" podem indicar Alimentação quando isso fizer sentido pelos dados.
 
