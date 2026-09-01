@@ -2216,8 +2216,9 @@ init();
 
     const base = window.renderResumo;
     window.__flashRenderResumoMonth = function(ym){
-      const transactions = (window.data && Array.isArray(window.data.transactions))
-        ? window.data.transactions : [];
+      const transactions = (typeof data !== 'undefined' && Array.isArray(data.transactions))
+        ? data.transactions
+        : (window.data && Array.isArray(window.data.transactions) ? window.data.transactions : []);
       const cur = transactions.filter(t => String(t.date||'').slice(0,7) === ym);
 
       const sum = (type) => cur.filter(t=>t.type===type)
