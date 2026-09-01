@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0b0f17">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -397,7 +397,8 @@ main { position: relative; z-index: 1; padding-bottom: 40px; }
 }
 .modal-overlay.open { opacity: 1; pointer-events: auto; }
 .modal {
-  width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto;
+  width: 100%; max-width: 480px; max-height: 88vh; max-height: 88dvh; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg2); border: 1px solid var(--border2);
   border-radius: 24px 24px 0 0; transform: translateY(24px); transition: transform .3s;
 }
@@ -526,7 +527,7 @@ input::placeholder { color: var(--text3); }
 .wallpaper-pattern-opt.active .wallpaper-pattern-name { color: var(--gold); }
 
 /* ── CHAT (Assistente) ── */
-.chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 128px); }
+.chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 128px); height: calc(100dvh - 128px); }
 .chat-scroll { flex: 1; overflow-y: auto; padding: 16px 20px 12px; display: flex; flex-direction: column; gap: 12px; }
 .msg { max-width: 84%; padding: 11px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.55; }
 .msg.bot { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; color: var(--text); }
@@ -582,7 +583,7 @@ input::placeholder { color: var(--text3); }
 
 <style id="flash-mobile-nav">
 @media (max-width: 700px) {
-  body { padding-bottom: 82px !important; }
+  body { padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important; }
   header .tabs { display: none !important; }
   header { min-height: 62px !important; }
   .filter-bar {
@@ -604,7 +605,7 @@ input::placeholder { color: var(--text3); }
     position: fixed;
     left: 10px;
     right: 10px;
-    bottom: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     z-index: 9999;
     height: 64px;
     display: grid;
@@ -677,11 +678,20 @@ input::placeholder { color: var(--text3); }
   .flash-mobile-filters > * { flex: 0 0 auto !important; }
 
   .flash-mobile-nav-spacer { height: 4px; }
+
+  /* Dá espaço extra no fim dos modais para o conteúdo não ficar
+     escondido atrás do menu fixo, mesmo antes dele ser ocultado. */
+  .modal-inner { padding-bottom: calc(26px + env(safe-area-inset-bottom, 0px)); }
 }
 
 @media (min-width: 701px) {
   .flash-mobile-nav { display: none; }
 }
+
+/* O menu inferior fixo tem z-index maior que os modais e ficava por
+   cima do conteúdo (ex.: botão "Resetar tudo"), escondendo-o mesmo
+   ao rolar. Enquanto um modal está aberto, o menu some. */
+body.flash-modal-open .flash-mobile-nav { display: none !important; }
 </style>
 
 
@@ -2157,6 +2167,23 @@ init();
 })();
 </script>
 
+<script id="flash-modal-nav-fix-js">
+(function(){
+  // Enquanto qualquer modal (.modal-overlay) estiver aberto, marca o <body>
+  // para esconder o menu fixo de navegação — ele tinha z-index maior que os
+  // modais e cobria botões no fim do conteúdo (ex.: "Resetar tudo").
+  function syncModalOpenState(){
+    const anyOpen = !!document.querySelector('.modal-overlay.open');
+    document.body.classList.toggle('flash-modal-open', anyOpen);
+  }
+  document.querySelectorAll('.modal-overlay').forEach(function(overlay){
+    new MutationObserver(syncModalOpenState).observe(overlay, {
+      attributes: true, attributeFilter: ['class']
+    });
+  });
+  syncModalOpenState();
+})();
+</script>
 
 <script id="flash-mobile-theme-js">
 (function(){
