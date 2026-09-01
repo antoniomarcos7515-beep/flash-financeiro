@@ -342,9 +342,19 @@ main { position: relative; z-index: 1; padding-bottom: 40px; }
 .txn-info { flex: 1; min-width: 0; }
 .txn-name { font-size: 13.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .txn-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
-.txn-val { font-family: var(--mono); font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.txn-val {
+  font-family: var(--mono); font-size: 15px; font-weight: 700; white-space: nowrap;
+  letter-spacing: -0.2px; font-variant-numeric: tabular-nums;
+}
 .txn-val.pos { color: var(--green); }
 .txn-val.neg { color: var(--text); }
+.txn-del {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px; border: 1px solid transparent;
+  background: transparent; color: var(--text3); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.txn-del:hover { background: rgba(224,74,74,0.12); border-color: rgba(224,74,74,0.35); color: var(--red); }
+.txn-del svg { width: 15px; height: 15px; }
 
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
 .empty-icon {
@@ -441,6 +451,14 @@ input::placeholder { color: var(--text3); }
   font-family: var(--font); cursor: pointer; margin-top: 8px;
 }
 .btn-danger-text { color: var(--red); text-align: center; font-size: 12.5px; font-weight: 600; margin-top: 14px; cursor: pointer; }
+.data-actions-row { display: flex; gap: 8px; margin-top: 6px; }
+.data-actions-row .btn-secondary { margin-top: 0; }
+.btn-outline-gold {
+  width: 100%; background: transparent; color: var(--gold); border: 1px solid var(--gold-dim, var(--border2));
+  border-radius: var(--radius-xs); padding: 13px; font-size: 13px; font-weight: 600;
+  font-family: var(--font); cursor: pointer; margin-top: 8px; transition: all .15s;
+}
+.btn-outline-gold:hover { background: var(--gold-dim); }
 
 /* ── SETTINGS MODAL ── */
 .settings-note { font-size: 12px; color: var(--text3); line-height: 1.6; margin-top: 10px; }
@@ -986,7 +1004,14 @@ input::placeholder { color: var(--text3); }
       </p>
       <button type="button" class="btn-primary" onclick="saveSettings()">Salvar</button>
       <button type="button" class="btn-secondary" onclick="closeSettings()">Fechar</button>
-      <div class="btn-danger-text" onclick="clearAllData()">Apagar todos os dados</div>
+
+      <div class="settings-label" style="margin-top:18px">Dados</div>
+      <button type="button" class="btn-outline-gold" onclick="exportBackup()">⬇️ Fazer backup (exportar)</button>
+      <button type="button" class="btn-secondary" onclick="document.getElementById('f-import-backup').click()">⬆️ Restaurar backup</button>
+      <input type="file" id="f-import-backup" accept="application/json,.json" style="display:none" onchange="importBackup(event)">
+      <p class="settings-note">O backup gera um arquivo .json com todos os seus lançamentos e configurações. Guarde-o em local seguro — ele pode ser usado para restaurar seus dados neste ou em outro dispositivo.</p>
+
+      <div class="btn-danger-text" onclick="clearAllData()">🗑️ Resetar tudo (apagar dados)</div>
     </div>
   </div>
 </div>
@@ -1278,11 +1303,7 @@ function renderResumo(){
   const list=document.getElementById('resumo-list');
   if(list){
     const ordered=[...cur].sort((a,b)=>new Date(b.date)-new Date(a.date));
-    list.innerHTML=ordered.length ? ordered.map(t=>{
-      const info=getCatInfo(t.type,t.category);
-      const sign=t.type==='receita'?'+':'-';
-      return `<div class="txn-row"><div class="txn-icon">${info.icon}</div><div class="txn-main"><div class="txn-name">${escapeHtml(t.description||info.name)}</div><div class="txn-meta">${info.name} · ${getPaymentName(t.paymentMethod)}</div></div><div class="txn-value ${t.type==='receita'?'positive':'negative'}">${sign} ${fmt(t.value)}</div></div>`;
-    }).join('') : '<div class="empty-state"><p>Nenhum lançamento neste mês.</p></div>';
+    list.innerHTML=ordered.length ? ordered.map(txnRowHTML).join('') : '<div class="empty-state"><p>Nenhum lançamento neste mês.</p></div>';
   }
 }
 
@@ -1422,7 +1443,21 @@ function txnRowHTML(t){
       <div class="txn-meta">${t.account? escapeHtml(t.account)+' · ':''}${info.name} · ${getPaymentName(t.paymentMethod)} · ${dateFmt}</div>
     </div>
     <div class="txn-val" style="color:${valColor}">${sign}${fmt(Math.abs(t.value))}</div>
+    <button type="button" class="txn-del" title="Excluir lançamento" aria-label="Excluir lançamento" onclick="event.stopPropagation(); deleteTxnDirect('${t.id}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </button>
   </div>`;
+}
+
+function deleteTxnDirect(id){
+  const t=data.transactions.find(x=>x.id===id);
+  if(!t) return;
+  if(!confirm(`Excluir o lançamento "${t.desc}" (${fmt(t.value)})? Essa ação não pode ser desfeita.`)) return;
+  data.transactions=data.transactions.filter(x=>x.id!==id);
+  save();
+  renderPainel(); renderLancamentos();
+  if(document.getElementById('view-resumo').classList.contains('active')) renderResumo();
+  showToast('🗑️ Lançamento excluído!');
 }
 
 function renderRecent(){
@@ -1580,6 +1615,65 @@ function clearAllData(){
   }
 }
 
+
+// ── BACKUP / RESTAURAÇÃO ──
+function exportBackup(){
+  try{
+    const payload={
+      app:'FLASH',
+      version:1,
+      exportedAt:new Date().toISOString(),
+      data:data
+    };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const stamp=new Date().toISOString().slice(0,10);
+    a.href=url;
+    a.download=`flash-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('⬇️ Backup exportado!');
+  }catch(err){
+    console.error(err);
+    showToast('⚠️ Não foi possível gerar o backup.','error');
+  }
+}
+
+function importBackup(event){
+  const file=event.target.files && event.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    try{
+      const parsed=JSON.parse(reader.result);
+      const incoming=parsed && parsed.data ? parsed.data : parsed;
+      if(!incoming || !Array.isArray(incoming.transactions)){
+        showToast('⚠️ Arquivo de backup inválido.','error');
+        return;
+      }
+      if(!confirm('Restaurar este backup vai substituir todos os dados atuais. Deseja continuar?')) return;
+      data={
+        transactions: incoming.transactions || [],
+        settings: Object.assign({apiKey:'',cardLimit:0,cardUsed:0,theme:'dourado',wallpaper:null,wallpaperPattern:'none',wallpaperOpacity:40}, incoming.settings||{})
+      };
+      save();
+      applyWallpaper();
+      renderPainel(); renderLancamentos();
+      if(document.getElementById('view-resumo').classList.contains('active')) renderResumo();
+      closeSettings();
+      showToast('✅ Backup restaurado!');
+    }catch(err){
+      console.error(err);
+      showToast('⚠️ Não foi possível ler esse arquivo.','error');
+    }finally{
+      event.target.value='';
+    }
+  };
+  reader.readAsText(file);
+}
 
 // ── CARTÃO DE CRÉDITO ──
 function getCardLimit(){
@@ -2246,15 +2340,11 @@ init();
 
       const list=document.getElementById('resumo-list');
       if(list){
-        const infoFn=window.getCatInfo;
-        const escapeFn=window.escapeHtml || (x=>String(x));
         const rows=[...cur].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-        list.innerHTML=rows.length ? rows.map(t=>{
-          const info=infoFn ? infoFn(t.type,t.category) : {name:'',icon:'•'};
-          const sign=t.type==='receita'?'+':'-';
-          const pm=({cartao:'💳 Cartão',pix:'⚡ Pix',dinheiro:'💵 Dinheiro / Conta',conta:'💵 Dinheiro / Conta'})[t.paymentMethod] || '💵 Dinheiro / Conta';
-          return `<div class="txn-row"><div class="txn-icon">${info.icon||'•'}</div><div class="txn-main"><div class="txn-name">${escapeFn(t.description||info.name||'Lançamento')}</div><div class="txn-meta">${info.name||''} · ${pm}</div></div><div class="txn-value ${t.type==='receita'?'positive':'negative'}">${sign} ${fmt(t.value)}</div></div>`;
-        }).join('') : '<div class="empty-state"><p>Nenhum lançamento neste mês.</p></div>';
+        const rowFn=window.txnRowHTML;
+        list.innerHTML = rows.length
+          ? (rowFn ? rows.map(rowFn).join('') : '')
+          : '<div class="empty-state"><p>Nenhum lançamento neste mês.</p></div>';
       }
 
       // Mantém o gráfico por categoria atualizado para o mês selecionado.
